@@ -1,8 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Chips } from './Chips';
 
 const Globe = lazy(() => import('./Globe'));
+
+const DRAFT_KEY = 'pathray:quickcheck-draft';
 
 const LEVELS = [
   { id: 'bachelors', label: 'Bachelor’s' },
@@ -54,7 +57,27 @@ function HeroGlobe() {
 
 function QuickCheckCard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [level, setLevel] = useState<string | null>(null);
+
+  function start() {
+    if (!level) return;
+    try {
+      let answers: Record<string, string | string[]> = {};
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.answers) answers = parsed.answers;
+      }
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ answers: { ...answers, level }, index: 0 }),
+      );
+    } catch {
+      // Storage can be blocked. The quiz still works without the preselected level.
+    }
+    navigate('/check');
+  }
 
   return (
     <div
@@ -62,7 +85,7 @@ function QuickCheckCard() {
       className="scroll-mt-24 rounded-card border border-white/12 bg-white/6 p-5 shadow-[0_10px_40px_rgb(0_0_0/0.35),inset_0_1px_0_rgb(255_255_255/0.18)] backdrop-blur-[18px] backdrop-saturate-[1.4] motion-reduce:bg-[rgb(19_31_63/0.92)] motion-reduce:backdrop-blur-none sm:p-6"
     >
       <p className="text-sm text-white/70">
-        {t('landing.hero.card.step', 'Free Quick Check · Question 1 of 8')}
+        {t('landing.hero.card.step', 'Free Quick Check')}
       </p>
 
       <fieldset className="mt-3 border-0 p-0">
@@ -96,6 +119,7 @@ function QuickCheckCard() {
       <button
         type="button"
         disabled={!level}
+        onClick={start}
         className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-control bg-white px-5 font-medium text-navy transition-transform duration-150 ease-pathray enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {t('landing.hero.card.continue', 'Continue')}

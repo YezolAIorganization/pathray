@@ -44,7 +44,7 @@ function Header() {
         </a>
 
         <a
-          href="#quick-check"
+          href="/check"
           className="inline-flex min-h-11 items-center justify-center rounded-control bg-white px-5 font-medium text-navy no-underline transition-transform duration-150 ease-pathray active:scale-[0.97]"
         >
           {t('landing.header.start', 'Start Quick Check')}

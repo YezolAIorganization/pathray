@@ -16,7 +16,7 @@ export function FinalCta() {
           )}
         </p>
         <a
-          href="#quick-check"
+          href="/check"
           className="mt-8 inline-flex min-h-11 items-center justify-center rounded-control bg-white px-6 font-medium text-navy no-underline transition-transform duration-150 ease-pathray active:scale-[0.97]"
         >
           {t('landing.cta.button', 'Start your free Quick Check')}
