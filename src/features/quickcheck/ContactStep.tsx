@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 
 export type Contact = {
@@ -20,18 +21,24 @@ type Errors = Partial<Record<'name' | 'email' | 'whatsapp' | 'consent', string>>
 
 function validate(c: Contact): Errors {
   const errors: Errors = {};
+
   if (c.name.trim().length < 2) errors.name = 'Enter your name.';
+
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email.trim())) {
     errors.email = 'Enter a valid email address, like name@example.com.';
   }
+
   const digits = c.whatsapp.replace(/\D/g, '');
+
   if (c.whatsapp.trim() && (digits.length < 7 || digits.length > 15)) {
     errors.whatsapp =
       'Enter your number with the country code, like +92 300 1234567, or leave it empty.';
   }
+
   if (!c.consent) {
     errors.consent = 'Tick this box so we can save your answers and send your result.';
   }
+
   return errors;
 }
 
@@ -40,6 +47,7 @@ const inputClass =
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
+
   return (
     <p id={id} className="mt-2 flex items-start gap-2 text-sm font-medium text-white">
       <span
@@ -58,9 +66,18 @@ type Props = {
   onChange: (next: Contact) => void;
   onBack: () => void;
   onSubmit: () => void;
+  isSubmitting?: boolean;
+  submitError?: string | null;
 };
 
-export function ContactStep({ value, onChange, onBack, onSubmit }: Props) {
+export function ContactStep({
+  value,
+  onChange,
+  onBack,
+  onSubmit,
+  isSubmitting = false,
+  submitError = null,
+}: Props) {
   const [errors, setErrors] = useState<Errors>({});
 
   function set<K extends keyof Contact>(key: K, next: Contact[K]) {
@@ -69,16 +86,24 @@ export function ContactStep({ value, onChange, onBack, onSubmit }: Props) {
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+
+    if (isSubmitting) return;
+
     const found = validate(value);
     setErrors(found);
+
     if (Object.keys(found).length === 0) {
       onSubmit();
       return;
     }
+
     const first = ['name', 'email', 'whatsapp', 'consent'].find(
       (k) => found[k as keyof Errors],
     );
-    if (first) document.getElementById(`contact-${first}`)?.focus();
+
+    if (first) {
+      document.getElementById(`contact-${first}`)?.focus();
+    }
   }
 
   return (
@@ -170,19 +195,28 @@ export function ContactStep({ value, onChange, onBack, onSubmit }: Props) {
         </label>
       </div>
 
+      {submitError && (
+        <p role="alert" className="mt-5 rounded-control border border-red-300/30 bg-red-400/10 p-3 text-sm text-white">
+          {submitError}
+        </p>
+      )}
+
       <div className="mt-6 flex gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex min-h-11 items-center justify-center rounded-control border border-white/25 px-5 font-medium text-white transition-transform duration-150 ease-pathray active:scale-[0.97]"
+          disabled={isSubmitting}
+          className="inline-flex min-h-11 items-center justify-center rounded-control border border-white/25 px-5 font-medium text-white transition-transform duration-150 ease-pathray active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Back
         </button>
+
         <button
           type="submit"
-          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-control bg-white px-5 font-medium text-navy transition-transform duration-150 ease-pathray active:scale-[0.97]"
+          disabled={isSubmitting}
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-control bg-white px-5 font-medium text-navy transition-transform duration-150 ease-pathray active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          See my result
+          {isSubmitting ? 'Saving your answers…' : 'See my result'}
         </button>
       </div>
     </form>

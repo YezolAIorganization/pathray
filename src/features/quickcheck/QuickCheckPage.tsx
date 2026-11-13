@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { COUNTRY_STEP, buildSteps, type Field } from './questions';
@@ -5,6 +6,7 @@ import { getFundingTier, type BudgetBand, type ScholarshipNeed } from './tier';
 import type { MarketId } from '../../config/markets';
 import { ContactStep, EMPTY_CONTACT, type Contact } from './ContactStep';
 import { ResultStep } from './ResultStep';
+import { submitQuickCheck } from './submitQuickCheck';
 
 type Answers = Record<string, string | string[]>;
 type Draft = { answers: Answers; index: number; contact: Contact };
@@ -14,8 +16,10 @@ const DRAFT_KEY = 'pathray:quickcheck-draft';
 function loadDraft(): Draft {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
+
     if (raw) {
       const parsed = JSON.parse(raw);
+
       if (parsed && typeof parsed.index === 'number' && parsed.answers) {
         return {
           answers: parsed.answers,
@@ -27,6 +31,7 @@ function loadDraft(): Draft {
   } catch {
     // Storage can be blocked. Start fresh.
   }
+
   return { answers: {}, index: 0, contact: EMPTY_CONTACT };
 }
 
@@ -48,6 +53,7 @@ function clearDraft() {
 
 function isAnswered(field: Field, answers: Answers) {
   const value = answers[field.name];
+
   return field.multi
     ? Array.isArray(value) && value.length > 0
     : typeof value === 'string' && value !== '';
@@ -76,14 +82,24 @@ export function QuickCheckPage() {
   const [answers, setAnswers] = useState<Answers>(initial.answers);
   const [index, setIndex] = useState(initial.index);
   const [contact, setContact] = useState<Contact>(initial.contact);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  const marketId = (typeof answers.market === 'string' ? answers.market : 'pk') as MarketId;
-  const steps = useMemo(() => [COUNTRY_STEP, ...buildSteps(marketId)], [marketId]);
+  const marketId = (
+    typeof answers.market === 'string' ? answers.market : 'pk'
+  ) as MarketId;
+
+  const steps = useMemo(
+    () => [COUNTRY_STEP, ...buildSteps(marketId)],
+    [marketId],
+  );
 
   // index 0 = Q0 (country), 1 to 7 = Q1 to Q7, 8 = Q8 (contact), 9 = result
   const contactIndex = steps.length;
   const resultIndex = steps.length + 1;
+
   const step = index < steps.length ? steps[index] : null;
   const showContact = index === contactIndex;
   const showResult = index >= resultIndex;
@@ -101,12 +117,15 @@ export function QuickCheckPage() {
       const next: Answers = { ...prev };
 
       if (field.multi) {
-        const current = Array.isArray(prev[field.name]) ? (prev[field.name] as string[]) : [];
+        const current = Array.isArray(prev[field.name])
+          ? (prev[field.name] as string[])
+          : [];
 
         if (optionId === field.exclusiveOption) {
           next[field.name] = current.includes(optionId) ? [] : [optionId];
         } else {
           const without = current.filter((id) => id !== field.exclusiveOption);
+
           if (without.includes(optionId)) {
             next[field.name] = without.filter((id) => id !== optionId);
           } else if (field.max && without.length >= field.max) {
@@ -116,7 +135,10 @@ export function QuickCheckPage() {
           }
         }
       } else {
-        if (field.name === 'market' && prev.market !== optionId) delete next.budgetBand;
+        if (field.name === 'market' && prev.market !== optionId) {
+          delete next.budgetBand;
+        }
+
         next[field.name] = optionId;
       }
 
@@ -128,15 +150,45 @@ export function QuickCheckPage() {
     clearDraft();
     setAnswers({});
     setContact(EMPTY_CONTACT);
+    setSubmitError(null);
+    setIsSubmitting(false);
     setIndex(0);
   }
 
-  const canContinue = step ? step.fields.every((f) => isAnswered(f, answers)) : false;
+  async function handleContactSubmit() {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await submitQuickCheck(answers, tier, contact);
+      setIndex(resultIndex);
+    } catch (error) {
+      console.error('Quick Check submission failed:', error);
+      setSubmitError(
+        'We could not save your answers. Please check your connection and try again.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const canContinue = step
+    ? step.fields.every((field) => isAnswered(field, answers))
+    : false;
 
   const need = answers.scholarshipNeed as ScholarshipNeed | undefined;
   const band = Number(answers.budgetBand) as BudgetBand;
-  const tier = need && [0, 1, 2, 3].includes(band) ? getFundingTier(need, band) : null;
-  const destinations = Array.isArray(answers.destinations) ? answers.destinations : [];
+
+  const tier =
+    need && [0, 1, 2, 3].includes(band)
+      ? getFundingTier(need, band)
+      : null;
+
+  const destinations = Array.isArray(answers.destinations)
+    ? answers.destinations
+    : [];
 
   return (
     <div
@@ -149,7 +201,12 @@ export function QuickCheckPage() {
       <header className="border-b border-white/10">
         <div className="mx-auto flex h-[84px] w-full max-w-[1200px] items-center px-4 sm:px-6 lg:px-8">
           <Link to="/" aria-label="Pathray home" className="inline-flex">
-            <img src="/brand/pathray-logo-dark.svg" alt="Pathray" width={128} height={45} />
+            <img
+              src="/brand/pathray-logo-dark.svg"
+              alt="Pathray"
+              width={128}
+              height={45}
+            />
           </Link>
         </div>
       </header>
@@ -159,8 +216,11 @@ export function QuickCheckPage() {
           {!showResult && (
             <>
               <p className="text-sm text-white/70">
-                {index === 0 ? 'Free Quick Check' : `Free Quick Check · Question ${index} of 8`}
+                {index === 0
+                  ? 'Free Quick Check'
+                  : `Free Quick Check · Question ${index} of 8`}
               </p>
+
               <div
                 role="progressbar"
                 aria-valuemin={0}
@@ -171,7 +231,9 @@ export function QuickCheckPage() {
               >
                 <div
                   className="h-full rounded-full bg-white transition-[width] duration-300 ease-pathray"
-                  style={{ width: `${(Math.min(index, 8) / 8) * 100}%` }}
+                  style={{
+                    width: `${(Math.min(index, 8) / 8) * 100}%`,
+                  }}
                 />
               </div>
             </>
@@ -179,17 +241,24 @@ export function QuickCheckPage() {
 
           {step && (
             <>
-              <h1 ref={headingRef} tabIndex={-1} className="mt-6 text-h2 outline-none">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="mt-6 text-h2 outline-none"
+              >
                 {step.title}
               </h1>
 
               {step.fields.map((field) => {
                 const value = answers[field.name];
+
                 return (
                   <fieldset key={field.name} className="mt-5 border-0 p-0">
                     <legend
                       className={
-                        step.fields.length > 1 ? 'mb-3 font-medium text-white' : 'sr-only'
+                        step.fields.length > 1
+                          ? 'mb-3 font-medium text-white'
+                          : 'sr-only'
                       }
                     >
                       {field.label}
@@ -200,8 +269,12 @@ export function QuickCheckPage() {
                         const selected = field.multi
                           ? Array.isArray(value) && value.includes(option.id)
                           : value === option.id;
+
                         return (
-                          <label key={option.id} className="relative block cursor-pointer">
+                          <label
+                            key={option.id}
+                            className="relative block cursor-pointer"
+                          >
                             <input
                               type={field.multi ? 'checkbox' : 'radio'}
                               name={field.name}
@@ -210,6 +283,7 @@ export function QuickCheckPage() {
                               onChange={() => choose(field, option.id)}
                               className="peer sr-only"
                             />
+
                             <span className="flex min-h-11 items-center justify-between gap-2 rounded-control border border-white/15 bg-white/5 px-4 py-3 text-white transition-colors duration-150 peer-checked:border-white peer-checked:bg-white/15 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-cyan-bright">
                               {option.label}
                               {selected && <CheckIcon />}
@@ -232,6 +306,7 @@ export function QuickCheckPage() {
                     Back
                   </button>
                 )}
+
                 <button
                   type="button"
                   disabled={!canContinue}
@@ -246,14 +321,21 @@ export function QuickCheckPage() {
 
           {showContact && (
             <>
-              <h1 ref={headingRef} tabIndex={-1} className="mt-6 text-h2 outline-none">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="mt-6 text-h2 outline-none"
+              >
                 Where should we send your result?
               </h1>
+
               <ContactStep
                 value={contact}
                 onChange={setContact}
                 onBack={() => setIndex(steps.length - 1)}
-                onSubmit={() => setIndex(resultIndex)}
+                onSubmit={handleContactSubmit}
+                isSubmitting={isSubmitting}
+                submitError={submitError}
               />
             </>
           )}
