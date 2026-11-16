@@ -1,8 +1,7 @@
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { COUNTRY_STEP, buildSteps, type Field } from './questions';
-import { getFundingTier, type BudgetBand, type ScholarshipNeed } from './tier';
+import { getFundingTier, type BudgetBand, type ScholarshipNeed, type Tier } from './tier';
 import type { MarketId } from '../../config/markets';
 import { ContactStep, EMPTY_CONTACT, type Contact } from './ContactStep';
 import { ResultStep } from './ResultStep';
@@ -84,6 +83,7 @@ export function QuickCheckPage() {
   const [contact, setContact] = useState<Contact>(initial.contact);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [serverTier, setServerTier] = useState<Tier | null>(null);
 
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -152,6 +152,7 @@ export function QuickCheckPage() {
     setContact(EMPTY_CONTACT);
     setSubmitError(null);
     setIsSubmitting(false);
+    setServerTier(null);
     setIndex(0);
   }
 
@@ -162,7 +163,8 @@ export function QuickCheckPage() {
     setSubmitError(null);
 
     try {
-      await submitQuickCheck(answers, tier, contact);
+      const result = await submitQuickCheck(answers, localTier, contact);
+      setServerTier(result.tier);
       setIndex(resultIndex);
     } catch (error) {
       console.error('Quick Check submission failed:', error);
@@ -181,7 +183,8 @@ export function QuickCheckPage() {
   const need = answers.scholarshipNeed as ScholarshipNeed | undefined;
   const band = Number(answers.budgetBand) as BudgetBand;
 
-  const tier =
+  // Only a fallback. The tier shown on the result screen is the one the server saved.
+  const localTier =
     need && [0, 1, 2, 3].includes(band)
       ? getFundingTier(need, band)
       : null;
@@ -342,7 +345,7 @@ export function QuickCheckPage() {
 
           {showResult && (
             <ResultStep
-              tier={tier}
+              tier={serverTier ?? localTier}
               name={contact.name}
               destinations={destinations}
               onBack={() => setIndex(contactIndex)}
