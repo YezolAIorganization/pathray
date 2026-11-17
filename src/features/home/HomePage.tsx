@@ -4,6 +4,9 @@ import { supabase } from '../../lib/supabase';
 import { formatMoney } from '../../lib/money';
 import { getAccountState, type AccountState } from '../account/account';
 
+// Set to false to hide the proof upload until real payment details are ready.
+const PAYMENT_PROOF_ENABLED = true;
+
 type Journey = { id: string; status: string; funding_tier: string | null; market_id: string };
 type Order = { id: string; reference: string; amount: number; currency: string; is_paid: boolean };
 type Price = { price: number; currency: string };
@@ -21,6 +24,20 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const LOCALES: Record<string, string> = { PKR: 'en-PK', INR: 'en-IN', USD: 'en-US' };
+
+const METHODS = [
+  { id: 'bank_transfer', label: 'Bank transfer' },
+  { id: 'jazzcash', label: 'JazzCash' },
+  { id: 'easypaisa', label: 'Easypaisa' },
+];
+
+const MAX_BYTES = 5 * 1024 * 1024;
+const FILE_EXT: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
 
 function money(amount: number, currency: string) {
   return formatMoney(Number(amount), currency, LOCALES[currency] ?? 'en-US');
@@ -61,6 +78,141 @@ async function loadHome(): Promise<HomeData> {
   return { journey, order, price };
 }
 
+function friendlyProofError(message: string) {
+  if (message.includes('already used')) {
+    return 'This transaction ID was already used. Check the ID and try again.';
+  }
+  if (message.includes('already under review')) {
+    return 'A payment for this order is already under review.';
+  }
+  return 'We could not send your proof. Please try again.';
+}
+
+function ProofForm({
+  orderId,
+  userId,
+  onDone,
+}: {
+  orderId: string;
+  userId: string;
+  onDone: () => void;
+}) {
+  const [method, setMethod] = useState('');
+  const [trx, setTrx] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    setError(null);
+
+    if (!method) return setError('Choose how you paid.');
+    if (!file) return setError('Attach a photo or PDF of your payment receipt.');
+    if (!FILE_EXT[file.type]) return setError('Use a PDF, JPG, PNG or WebP file.');
+    if (file.size > MAX_BYTES) return setError('The file is too big. The limit is 5 MB.');
+
+    setBusy(true);
+    const path = `${userId}/${orderId}-${Date.now()}.${FILE_EXT[file.type]}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('payment-proofs')
+      .upload(path, file, { contentType: file.type, upsert: false });
+
+    if (uploadError) {
+      console.error('Upload failed:', uploadError);
+      setError('We could not upload your file. Please try again.');
+      setBusy(false);
+      return;
+    }
+
+    const { error: rpcError } = await supabase.rpc('submit_payment_proof', {
+      p_order_id: orderId,
+      p_method: method,
+      p_trx_id: trx,
+      p_proof_path: path,
+    });
+
+    if (rpcError) {
+      console.error('submit_payment_proof failed:', rpcError);
+      setError(friendlyProofError(rpcError.message ?? ''));
+      setBusy(false);
+      return;
+    }
+
+    setBusy(false);
+    onDone();
+  }
+
+  return (
+    <form onSubmit={submit} noValidate className="mt-5 border-t border-white/12 pt-5">
+      <h3 className="text-lg">I have paid</h3>
+
+      <fieldset className="mt-3 border-0 p-0">
+        <legend className="mb-2 font-medium">How did you pay?</legend>
+        <div className="grid gap-3">
+          {METHODS.map((m) => (
+            <label key={m.id} className="relative block cursor-pointer">
+              <input
+                type="radio"
+                name="method"
+                value={m.id}
+                checked={method === m.id}
+                onChange={() => setMethod(m.id)}
+                className="peer sr-only"
+              />
+              <span className="flex min-h-11 items-center rounded-control border border-white/15 bg-white/5 px-4 py-3 peer-checked:border-white peer-checked:bg-white/15 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-cyan-bright">
+                {m.label}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="mt-4">
+        <label htmlFor="trx" className="font-medium">
+          Transaction ID <span className="font-normal text-white/70">(optional)</span>
+        </label>
+        <input
+          id="trx"
+          type="text"
+          value={trx}
+          onChange={(e) => setTrx(e.target.value)}
+          className="mt-2 block min-h-11 w-full rounded-control border border-white/15 bg-white/5 px-4 text-base text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-bright"
+        />
+      </div>
+
+      <div className="mt-4">
+        <label htmlFor="proof" className="font-medium">
+          Payment receipt <span className="font-normal text-white/70">(PDF or image, up to 5 MB)</span>
+        </label>
+        <input
+          id="proof"
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="mt-2 block w-full text-sm text-white/80 file:mr-3 file:min-h-11 file:cursor-pointer file:rounded-control file:border-0 file:bg-white file:px-4 file:font-medium file:text-navy"
+        />
+      </div>
+
+      {error && (
+        <p role="alert" className="mt-4 text-sm font-medium text-white">
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={busy}
+        className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-control bg-white px-5 font-medium text-navy transition-transform duration-150 ease-pathray enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {busy ? 'Sending...' : 'Send my payment proof'}
+      </button>
+    </form>
+  );
+}
+
 export function HomePage() {
   const [account, setAccount] = useState<AccountState | null>(null);
   const [data, setData] = useState<HomeData | null>(null);
@@ -84,9 +236,10 @@ export function HomePage() {
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      await refresh();
-    })();
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [refresh]);
 
   async function placeOrder() {
@@ -216,13 +369,32 @@ export function HomePage() {
                   </div>
                   <div>
                     <dt className="text-sm text-white/70">Status</dt>
-                    <dd className="text-lg">{order.is_paid ? 'Paid' : 'Waiting for your payment'}</dd>
+                    <dd className="text-lg">
+                      {order.is_paid
+                        ? 'Paid'
+                        : journey.status === 'payment_review'
+                          ? 'Payment under review'
+                          : 'Waiting for your payment'}
+                    </dd>
                   </div>
                 </dl>
-                {!order.is_paid && (
+
+                {!order.is_paid && journey.status === 'awaiting_payment' && (
+                  <>
+                    <p className="mt-5 rounded-control border border-white/12 bg-white/5 p-4 text-white/80">
+                      Payment details are coming soon. When they are ready, you will see where to
+                      send your payment here. Keep your reference, you will need it.
+                    </p>
+                    {PAYMENT_PROOF_ENABLED && account?.userId && (
+                      <ProofForm orderId={order.id} userId={account.userId} onDone={refresh} />
+                    )}
+                  </>
+                )}
+
+                {journey.status === 'payment_review' && (
                   <p className="mt-5 rounded-control border border-white/12 bg-white/5 p-4 text-white/80">
-                    Payment details are coming soon. When they are ready, you will see where to send
-                    your payment here. Keep your reference, you will need it.
+                    We received your payment proof. We will check it, and your status here updates
+                    when it is confirmed.
                   </p>
                 )}
               </div>
