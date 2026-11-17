@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { formatMoney } from '../../lib/money';
 import { getAccountState, type AccountState } from '../account/account';
+import { ProfileWizard } from '../profile/ProfileWizard';
+import { ReportViewer } from './ReportViewer';
 
 // Set to false to hide the proof upload until real payment details are ready.
 const PAYMENT_PROOF_ENABLED = true;
@@ -333,6 +335,12 @@ export function HomePage() {
               </div>
             </div>
 
+            {journey.status === 'awaiting_profile' && (
+              <ProfileWizard journeyId={journey.id} onSubmitted={refresh} />
+            )}
+
+            {journey.status === 'delivered' && <ReportViewer journeyId={journey.id} />}
+
             {!order && journey.status === 'quick_check' && (
               <div className="rounded-card border border-white/12 bg-[rgb(19_31_63/0.92)] p-5 sm:p-8">
                 <h2 className="text-xl">Pathray Report</h2>
@@ -368,7 +376,7 @@ export function HomePage() {
                     <dd className="text-lg">{money(order.amount, order.currency)}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm text-white/70">Status</dt>
+                    <dt className="src/ text-sm text-white/70">Status</dt>
                     <dd className="text-lg">
                       {order.is_paid
                         ? 'Paid'

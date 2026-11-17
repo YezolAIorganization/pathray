@@ -4,6 +4,7 @@ import { ComponentKitPage } from './features/kit/ComponentKitPage';
 import { QuickCheckPage } from './features/quickcheck/QuickCheckPage';
 import { AccountPage } from './features/account/AccountPage';
 import { HomePage } from './features/home/HomePage';
+import { AdminPage } from './features/admin/AdminPage';
 
 export function App() {
   return (
@@ -13,6 +14,7 @@ export function App() {
         <Route path="/check" element={<QuickCheckPage />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/home" element={<HomePage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/kit" element={<ComponentKitPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
