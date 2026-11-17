@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DESTINATIONS } from '../../config/markets';
 import type { Tier } from './tier';
+import { getAccountState, startAccount, type AccountState } from '../account/account';
 
 const COPY: Record<Tier, { title: string; text: string }> = {
   A: {
@@ -21,15 +22,82 @@ const COPY: Record<Tier, { title: string; text: string }> = {
   },
 };
 
+function SaveAccount({ email }: { email: string }) {
+  const [account, setAccount] = useState<AccountState | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getAccountState()
+      .then(setAccount)
+      .catch(() => setAccount(null));
+  }, []);
+
+  async function save() {
+    setSending(true);
+    setError(null);
+    try {
+      await startAccount(email);
+      setSent(true);
+    } catch (e) {
+      console.error('Could not start account:', e);
+      setError('We could not send the link. Please check your email address and try again in a few minutes.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const hasAccount = Boolean(account && !account.isAnonymous && account.email);
+
+  return (
+    <div className="mt-6 rounded-control border border-white/12 bg-white/5 p-4">
+      <h2 className="text-lg">Keep your result</h2>
+
+      {hasAccount ? (
+        <p className="mt-2 text-white/80">
+          Your result is saved to your account ({account?.email}).
+        </p>
+      ) : sent ? (
+        <p role="status" className="mt-2 text-white/80">
+          We sent a confirmation link to {email}. Open it to finish. Check your spam folder if you
+          do not see it.
+        </p>
+      ) : (
+        <>
+          <p className="mt-2 text-white/80">
+            Add your email to keep this result and come back to it later. We send a link to {email}.
+            No password needed.
+          </p>
+          <button
+            type="button"
+            onClick={save}
+            disabled={sending || !email}
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-control bg-white px-5 font-medium text-navy transition-transform duration-150 ease-pathray enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sending ? 'Sending...' : 'Save my result'}
+          </button>
+          {error && (
+            <p role="alert" className="mt-3 text-sm font-medium text-white">
+              {error}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 type Props = {
   tier: Tier | null;
   name: string;
+  email: string;
   destinations: string[];
   onBack: () => void;
   onRestart: () => void;
 };
 
-export function ResultStep({ tier, name, destinations, onBack, onRestart }: Props) {
+export function ResultStep({ tier, name, email, destinations, onBack, onRestart }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -114,9 +182,11 @@ export function ResultStep({ tier, name, destinations, onBack, onRestart }: Prop
         )}
       </div>
 
+      <SaveAccount email={email} />
+
       <a
         href="/#services"
-        className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-control bg-white px-5 font-medium text-navy no-underline transition-transform duration-150 ease-pathray active:scale-[0.97]"
+        className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-control border border-white/25 px-5 font-medium text-white no-underline transition-transform duration-150 ease-pathray active:scale-[0.97]"
       >
         See what the Pathray Report includes
       </a>

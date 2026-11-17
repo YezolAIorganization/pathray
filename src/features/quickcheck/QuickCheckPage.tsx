@@ -347,6 +347,7 @@ export function QuickCheckPage() {
             <ResultStep
               tier={serverTier ?? localTier}
               name={contact.name}
+              email={contact.email}
               destinations={destinations}
               onBack={() => setIndex(contactIndex)}
               onRestart={restart}
