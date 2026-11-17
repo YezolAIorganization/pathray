@@ -36,14 +36,14 @@ export function AccountPage() {
       }}
     >
       <header className="border-b border-white/10">
-        <div className="mx-auto flex h-[84px] w-full max-w-[1200px] items-center px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-21 w-full max-w-300 items-center px-4 sm:px-6 lg:px-8">
           <Link to="/" aria-label="Pathray home" className="inline-flex">
             <img src="/brand/pathray-logo-dark.svg" alt="Pathray" width={128} height={45} />
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[640px] px-4 py-10 sm:py-16">
+      <main className="mx-auto w-full max-w-160 px-4 py-10 sm:py-16">
         <div className="rounded-card border border-white/12 bg-[rgb(19_31_63/0.92)] p-5 shadow-[inset_0_1px_0_rgb(255_255_255/0.18)] sm:p-8">
           {loading && <p role="status">Checking your account...</p>}
 
