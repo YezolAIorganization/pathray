@@ -3,6 +3,7 @@ import { LandingPage } from './features/landing/LandingPage';
 import { ComponentKitPage } from './features/kit/ComponentKitPage';
 import { QuickCheckPage } from './features/quickcheck/QuickCheckPage';
 import { AccountPage } from './features/account/AccountPage';
+import { SignInPage } from './features/account/SignInPage';
 import { HomePage } from './features/home/HomePage';
 import { AdminPage } from './features/admin/AdminPage';
 
@@ -12,6 +13,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/check" element={<QuickCheckPage />} />
+        <Route path="/signin" element={<SignInPage />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/admin" element={<AdminPage />} />
