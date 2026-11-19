@@ -73,10 +73,10 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
   }
 
   return (
-    <section className="mt-6 rounded-card border border-cyan/35 bg-[rgb(19_31_63/0.92)] p-6 shadow-lg">
+    <section className="mt-6 rounded-card border border-white/15 bg-[rgb(19_31_63/0.92)] p-6 shadow-lg">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/12 pb-4">
         <div>
-          <span className="inline-block rounded-full bg-cyan/15 px-3 py-1 text-xs font-medium text-cyan">
+          <span className="inline-block rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white">
             Verified Funding Assessment
           </span>
           <h2 className="mt-2 font-heading text-2xl text-white">Your Personalized Roadmap</h2>
@@ -88,7 +88,7 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
 
       {report.summary && (
         <div className="mt-4 rounded-control border border-white/10 bg-white/5 p-4">
-          <h3 className="text-sm font-medium text-cyan">Executive Summary</h3>
+          <h3 className="text-sm font-medium text-white">Executive Summary</h3>
           <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-white/90">
             {report.summary}
           </p>
@@ -103,11 +103,11 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
         {report.content.map((item, idx) => (
           <article
             key={item.id}
-            className="rounded-control border border-white/15 bg-white/5 p-5 transition-colors hover:border-cyan/40"
+            className="rounded-control border border-white/15 bg-white/5 p-5 transition-colors hover:border-white/30"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="text-xs font-medium text-cyan">Pathway #{idx + 1}</div>
+                <div className="text-xs font-medium text-white/70">Pathway #{idx + 1}</div>
                 <h4 className="mt-0.5 text-lg font-medium text-white">{item.title}</h4>
                 <p className="text-sm text-white/75">{item.university_or_program}</p>
               </div>
@@ -141,7 +141,7 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
                   href={item.source_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-10 items-center rounded-control bg-cyan px-4 text-sm font-medium text-midnight no-underline transition-colors hover:bg-bright-cyan"
+                  className="inline-flex min-h-11 items-center rounded-control bg-white px-4 text-sm font-medium text-navy no-underline transition-colors hover:bg-white/90"
                 >
                   Open Official Application Source &rarr;
                 </a>

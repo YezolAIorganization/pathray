@@ -6,13 +6,14 @@ import { ReportBuilder } from './ReportBuilder';
 
 type JourneyAdmin = {
   id: string;
-  user_id?: string;
+  student_id?: string;
   status: string;
   funding_tier: string | null;
   market_id: string;
   created_at: string;
   sla_deadline?: string | null;
-  profile_details?: Record<string, unknown> | null;
+  timer_started_at?: string | null;
+  timer_deadline_at?: string | null;
 };
 
 type OrderAdmin = {
@@ -33,15 +34,32 @@ type ProofAdmin = {
   created_at: string;
 };
 
+type ProfileSubmissionRow = {
+  id: string;
+  journey_id: string;
+  student_id: string;
+  details: Record<string, unknown> | null;
+  submitted_at: string;
+  updated_at: string;
+};
+
+const ALLOWED_NEXT_STATUSES: Record<string, string[]> = {
+  awaiting_profile: ['in_research'],
+  in_research: ['in_review'],
+  in_review: ['in_research'],
+  delivered: ['closed'],
+};
+
 export function AdminPage() {
   const navigate = useNavigate();
   const [authorized, setAuthorized] = useState(false);
   const [journeys, setJourneys] = useState<JourneyAdmin[]>([]);
+  const [marketCodes, setMarketCodes] = useState<Record<string, string>>({});
   const [selectedJourney, setSelectedJourney] = useState<JourneyAdmin | null>(null);
   const [order, setOrder] = useState<OrderAdmin | null>(null);
   const [proof, setProof] = useState<ProofAdmin | null>(null);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
-  const [studentProfile, setStudentProfile] = useState<Record<string, unknown> | null>(null);
+  const [studentProfile, setStudentProfile] = useState<ProfileSubmissionRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,17 +76,26 @@ export function AdminPage() {
 
     setAuthorized(true);
 
-    const { data, error: fetchError } = await supabase
-      .from('journeys')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [journeysRes, marketsRes] = await Promise.all([
+      supabase.from('journeys').select('*').order('created_at', { ascending: false }),
+      supabase.from('markets').select('id, country_code'),
+    ]);
 
-    if (fetchError) {
-      console.error('Failed to load admin queue:', fetchError);
+    if (journeysRes.error) {
+      console.error('Failed to load admin queue:', journeysRes.error);
       setError('Could not load admin queue.');
     } else {
-      setJourneys((data as JourneyAdmin[]) ?? []);
+      setJourneys((journeysRes.data as JourneyAdmin[]) ?? []);
     }
+
+    if (!marketsRes.error && marketsRes.data) {
+      const map: Record<string, string> = {};
+      for (const m of marketsRes.data as { id: string; country_code: string }[]) {
+        map[m.id] = m.country_code;
+      }
+      setMarketCodes(map);
+    }
+
     setLoading(false);
   }, [navigate]);
 
@@ -79,22 +106,28 @@ export function AdminPage() {
     return () => window.clearTimeout(timer);
   }, [loadQueue]);
 
+  function formatMarket(marketId: string) {
+    return marketCodes[marketId] ?? marketId;
+  }
+
   async function selectJourney(j: JourneyAdmin) {
     setSelectedJourney(j);
     setOrder(null);
     setProof(null);
     setProofUrl(null);
-    setStudentProfile(j.profile_details ?? null);
+    setStudentProfile(null);
 
-    const { data: submissions } = await supabase
+    const { data: submissions, error: subError } = await supabase
       .from('profile_submissions')
-      .select('*')
+      .select('id, journey_id, student_id, details, submitted_at, updated_at')
       .eq('journey_id', j.id)
-      .order('created_at', { ascending: false })
+      .order('submitted_at', { ascending: false })
       .limit(1);
 
-    if (submissions && submissions.length > 0) {
-      setStudentProfile(submissions[0] as Record<string, unknown>);
+    if (subError) {
+      console.error('Failed to load profile submission:', subError);
+    } else if (submissions && submissions.length > 0) {
+      setStudentProfile(submissions[0] as ProfileSubmissionRow);
     }
 
     const { data: orders } = await supabase
@@ -193,6 +226,8 @@ export function AdminPage() {
     );
   }
 
+  const allowedNext = selectedJourney ? (ALLOWED_NEXT_STATUSES[selectedJourney.status] ?? []) : [];
+
   return (
     <div className="min-h-svh bg-midnight text-white">
       <header className="border-b border-white/10 p-4">
@@ -228,7 +263,8 @@ export function AdminPage() {
                 }`}
               >
                 <div className="font-medium">
-                  Tier {j.funding_tier?.replace('tier_', '').toUpperCase() ?? '?'} ({j.market_id})
+                  Tier {j.funding_tier?.replace('tier_', '').toUpperCase() ?? '?'} (
+                  {formatMarket(j.market_id)})
                 </div>
                 <div className="text-sm text-white/70">Status: {j.status}</div>
                 <div className="mt-1 text-xs text-white/50">
@@ -248,12 +284,18 @@ export function AdminPage() {
                   <strong className="text-white">Journey ID:</strong> {selectedJourney.id}
                 </div>
                 <div>
-                  <strong className="text-white">Market:</strong> {selectedJourney.market_id}
+                  <strong className="text-white">Market:</strong> {formatMarket(selectedJourney.market_id)}
                 </div>
                 <div>
                   <strong className="text-white">Status:</strong> {selectedJourney.status}
                 </div>
-                {selectedJourney.sla_deadline && (
+                {selectedJourney.timer_deadline_at && (
+                  <div>
+                    <strong className="text-white">48h Timer Deadline:</strong>{' '}
+                    {new Date(selectedJourney.timer_deadline_at).toLocaleString()}
+                  </div>
+                )}
+                {!selectedJourney.timer_deadline_at && selectedJourney.sla_deadline && (
                   <div>
                     <strong className="text-white">48h SLA Deadline:</strong>{' '}
                     {new Date(selectedJourney.sla_deadline).toLocaleString()}
@@ -329,29 +371,36 @@ export function AdminPage() {
               {studentProfile && (
                 <div className="mt-6 border-t border-white/12 pt-4">
                   <h3 className="text-lg font-medium">Student Profile</h3>
+                  <p className="mt-1 text-xs text-white/60">
+                    Submitted: {new Date(studentProfile.submitted_at).toLocaleString()}
+                  </p>
                   <pre className="mt-2 overflow-x-auto rounded-control border border-white/10 bg-white/5 p-3 text-xs text-white/85">
-                    {JSON.stringify(studentProfile, null, 2)}
+                    {JSON.stringify(studentProfile.details ?? studentProfile, null, 2)}
                   </pre>
                 </div>
               )}
 
               <div className="mt-6 border-t border-white/12 pt-4">
                 <h3 className="text-lg font-medium">Advance Journey Status</h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {['awaiting_profile', 'in_research', 'in_review', 'delivered', 'closed'].map(
-                    (status) => (
+                {allowedNext.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {allowedNext.map((status) => (
                       <button
                         key={status}
                         type="button"
-                        disabled={busy || selectedJourney.status === status}
+                        disabled={busy}
                         onClick={() => handleAdvanceStatus(selectedJourney.id, status)}
                         className="rounded-control border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium hover:bg-white/20 disabled:opacity-30"
                       >
                         Set to {status}
                       </button>
-                    ),
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-white/60">
+                    No direct admin status advance from {selectedJourney.status}.
+                  </p>
+                )}
               </div>
 
               <ReportBuilder

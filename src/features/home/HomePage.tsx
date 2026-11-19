@@ -376,7 +376,7 @@ export function HomePage() {
                     <dd className="text-lg">{money(order.amount, order.currency)}</dd>
                   </div>
                   <div>
-                    <dt className="src/ text-sm text-white/70">Status</dt>
+                    <dt className="text-sm text-white/70">Status</dt>
                     <dd className="text-lg">
                       {order.is_paid
                         ? 'Paid'
