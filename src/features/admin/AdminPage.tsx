@@ -25,9 +25,11 @@ type OrderAdmin = {
 
 type ProofAdmin = {
   id: string;
-  method: string;
+  payment_method: string;
   trx_id: string | null;
-  proof_path: string;
+  status: string;
+  proof_file_path: string | null;
+  reject_reason: string | null;
   created_at: string;
 };
 
@@ -106,20 +108,21 @@ export function AdminPage() {
     setOrder(currentOrder);
 
     if (currentOrder) {
-      const { data: proofs } = await supabase
-        .from('payment_proofs')
-        .select('id, method, trx_id, proof_path, created_at')
-        .eq('order_id', currentOrder.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+      const { data: proofs, error: proofError } = await supabase.rpc(
+        'admin_get_payment_for_order',
+        { p_order_id: currentOrder.id },
+      );
+      if (proofError) {
+        console.error('admin_get_payment_for_order failed:', proofError);
+      }
 
-      const currentProof = (proofs?.[0] as ProofAdmin | undefined) ?? null;
+      const currentProof = ((proofs as ProofAdmin[] | null)?.[0] as ProofAdmin | undefined) ?? null;
       setProof(currentProof);
 
-      if (currentProof?.proof_path) {
+      if (currentProof?.proof_file_path) {
         const { data: signed } = await supabase.storage
           .from('payment-proofs')
-          .createSignedUrl(currentProof.proof_path, 3600);
+          .createSignedUrl(currentProof.proof_file_path, 3600);
         if (signed?.signedUrl) {
           setProofUrl(signed.signedUrl);
         }
@@ -273,11 +276,14 @@ export function AdminPage() {
                       <div className="font-medium text-white">Submitted Payment Proof</div>
                       <div className="mt-2 grid gap-1 text-white/80">
                         <div>
-                          <strong className="text-white">Method:</strong> {proof.method}
+                          <strong className="text-white">Method:</strong> {proof.payment_method}
                         </div>
                         <div>
                           <strong className="text-white">Transaction ID:</strong>{' '}
                           {proof.trx_id || 'None provided'}
+                        </div>
+                        <div>
+                          <strong className="text-white">Payment status:</strong> {proof.status}
                         </div>
                         <div>
                           <strong className="text-white">Submitted:</strong>{' '}
