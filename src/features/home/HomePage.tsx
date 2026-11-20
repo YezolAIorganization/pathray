@@ -290,15 +290,23 @@ export function HomePage() {
           <div className="rounded-card border border-white/12 bg-[rgb(19_31_63/0.92)] p-5 sm:p-8">
             <h1 className="text-h2">Sign in to see your journey</h1>
             <p className="mt-3 text-white/70">
-              Open the confirmation link from your email in this browser, or take the free Quick
-              Check first.
+              Already started? Sign in with your email and we will send you a link. New here? Take
+              the free Quick Check first.
             </p>
-            <Link
-              to="/check"
-              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-control bg-white px-5 font-medium text-navy no-underline"
-            >
-              Take the Quick Check
-            </Link>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/signin"
+                className="inline-flex min-h-11 items-center justify-center rounded-control bg-white px-5 font-medium text-navy no-underline"
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/check"
+                className="inline-flex min-h-11 items-center justify-center rounded-control border border-white/25 px-5 font-medium text-white no-underline"
+              >
+                Take the Quick Check
+              </Link>
+            </div>
           </div>
         )}
 
