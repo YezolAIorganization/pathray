@@ -23,6 +23,15 @@ type ReportViewerProps = {
   journeyId: string;
 };
 
+function isSafeUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export function ReportViewer({ journeyId }: ReportViewerProps) {
   const [report, setReport] = useState<PublishedReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,18 +86,18 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/12 pb-4">
         <div>
           <span className="inline-block rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white">
-            Verified Funding Assessment
+            Verified funding assessment
           </span>
-          <h2 className="mt-2 font-heading text-2xl text-white">Your Personalized Roadmap</h2>
+          <h2 className="mt-2 font-heading text-2xl text-white">Your personalized roadmap</h2>
         </div>
         <div className="text-xs text-white/60">
-          Delivered: {new Date(report.updated_at).toLocaleDateString()}
+          Last updated: {new Date(report.updated_at).toLocaleDateString()}
         </div>
       </div>
 
       {report.summary && (
         <div className="mt-4 rounded-control border border-white/10 bg-white/5 p-4">
-          <h3 className="text-sm font-medium text-white">Executive Summary</h3>
+          <h3 className="text-sm font-medium text-white">Executive summary</h3>
           <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-white/90">
             {report.summary}
           </p>
@@ -97,7 +106,7 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
 
       <div className="mt-6 grid gap-4">
         <h3 className="text-lg font-medium text-white">
-          Recommended Funding Pathways ({report.content.length})
+          Recommended funding pathways ({report.content.length})
         </h3>
 
         {report.content.map((item, idx) => (
@@ -113,7 +122,7 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
               </div>
               {item.fact_verified && (
                 <span className="rounded-full border border-green-500/30 bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-300">
-                  Fact Verified
+                  Fact verified
                 </span>
               )}
             </div>
@@ -125,7 +134,7 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
               </div>
               <div>
                 <span className="text-white/60">Deadline: </span>
-                <span className="font-medium text-white">{item.deadline || 'Rolling / See Link'}</span>
+                <span className="font-medium text-white">{item.deadline || 'Rolling / see link'}</span>
               </div>
             </div>
 
@@ -135,7 +144,7 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
               </p>
             )}
 
-            {item.source_url && (
+            {item.source_url && isSafeUrl(item.source_url) && (
               <div className="mt-4">
                 <a
                   href={item.source_url}
@@ -143,7 +152,7 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
                   rel="noreferrer"
                   className="inline-flex min-h-11 items-center rounded-control bg-white px-4 text-sm font-medium text-navy no-underline transition-colors hover:bg-white/90"
                 >
-                  Open Official Application Source &rarr;
+                  Open official application source &rarr;
                 </a>
               </div>
             )}
