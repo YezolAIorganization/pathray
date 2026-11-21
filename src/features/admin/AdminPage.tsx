@@ -43,11 +43,24 @@ type ProfileSubmissionRow = {
   updated_at: string;
 };
 
+// Must match advance_journey_status in the database (migration 0018).
+// awaiting_profile to in_research is done by the student's submit_profile, not by an admin.
 const ALLOWED_NEXT_STATUSES: Record<string, string[]> = {
-  awaiting_profile: ['in_research'],
   in_research: ['in_review'],
   in_review: ['in_research'],
   delivered: ['closed'],
+};
+
+const STATUS_HINT: Record<string, string> = {
+  quick_check: 'The student has not ordered the report yet.',
+  awaiting_payment: 'Waiting for the student to pay and send a payment proof.',
+  payment_review: 'Review the payment proof above, then confirm or reject the payment.',
+  awaiting_profile:
+    'Waiting for the student to submit their profile. The case moves to research and the 48-hour clock starts when they do.',
+  in_research: 'Research is in progress.',
+  in_review: 'The report is being reviewed.',
+  delivered: 'The report is delivered.',
+  closed: 'This case is closed.',
 };
 
 export function AdminPage() {
@@ -398,7 +411,8 @@ export function AdminPage() {
                   </div>
                 ) : (
                   <p className="mt-2 text-sm text-white/60">
-                    No direct admin status advance from {selectedJourney.status}.
+                    {STATUS_HINT[selectedJourney.status] ??
+                      `No direct admin status advance from ${selectedJourney.status}.`}
                   </p>
                 )}
               </div>
