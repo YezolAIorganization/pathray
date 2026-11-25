@@ -30,6 +30,28 @@ export async function startAccount(email: string) {
   if (error) throw new Error(error.message);
 }
 
+// Upgrade the current anonymous visitor to a permanent account with Google.
+// No email is sent. The visitor keeps the same user id, so the Quick Check stays linked.
+// The browser leaves for Google and comes back to /account.
+export async function startGoogleAccount() {
+  const { error } = await supabase.auth.linkIdentity({
+    provider: 'google',
+    options: { redirectTo: redirectTo() },
+  });
+
+  if (error) throw new Error(error.message);
+}
+
+// For a returning student: sign in with Google. No email is sent.
+export async function signInWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: redirectTo() },
+  });
+
+  if (error) throw new Error(error.message);
+}
+
 // For a returning student on a new browser: send a sign-in link to a confirmed email.
 export async function sendSignInLink(email: string) {
   const { error } = await supabase.auth.signInWithOtp({
