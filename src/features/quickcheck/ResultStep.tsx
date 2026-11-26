@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { DESTINATIONS } from '../../config/markets';
 import type { Tier } from './tier';
-import { getAccountState, startAccount, type AccountState } from '../account/account';
+import {
+  getAccountState,
+  startAccount,
+  startGoogleAccount,
+  type AccountState,
+} from '../account/account';
 
 const COPY: Record<Tier, { title: string; text: string }> = {
   A: {
@@ -25,6 +30,7 @@ const COPY: Record<Tier, { title: string; text: string }> = {
 function SaveAccount({ email }: { email: string }) {
   const [account, setAccount] = useState<AccountState | null>(null);
   const [sending, setSending] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +41,7 @@ function SaveAccount({ email }: { email: string }) {
   }, []);
 
   async function save() {
+    if (sending || googleBusy) return;
     setSending(true);
     setError(null);
     try {
@@ -45,6 +52,20 @@ function SaveAccount({ email }: { email: string }) {
       setError('We could not send the link. Please check your email address and try again in a few minutes.');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function saveWithGoogle() {
+    if (sending || googleBusy) return;
+    setGoogleBusy(true);
+    setError(null);
+    try {
+      // The browser leaves for Google and comes back to /account. No email is sent.
+      await startGoogleAccount();
+    } catch (e) {
+      console.error('Could not start Google sign-in:', e);
+      setError('We could not start Google sign-in. Please try again.');
+      setGoogleBusy(false);
     }
   }
 
@@ -66,16 +87,23 @@ function SaveAccount({ email }: { email: string }) {
       ) : (
         <>
           <p className="mt-2 text-white/80">
-            Add your email to keep this result and come back to it later. We send a link to {email}.
-            No password needed.
+            Save this result to an account so you can come back to it later. No password needed.
           </p>
           <button
             type="button"
-            onClick={save}
-            disabled={sending || !email}
+            onClick={saveWithGoogle}
+            disabled={sending || googleBusy}
             className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-control bg-white px-5 font-medium text-navy transition-transform duration-150 ease-pathray enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {sending ? 'Sending...' : 'Save my result'}
+            {googleBusy ? 'Opening Google...' : 'Save with Google'}
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={sending || googleBusy || !email}
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-control border border-white/25 px-5 font-medium text-white transition-transform duration-150 ease-pathray enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sending ? 'Sending...' : email ? `Email a link to ${email}` : 'Email me a link'}
           </button>
           {error && (
             <p role="alert" className="mt-3 text-sm font-medium text-white">
