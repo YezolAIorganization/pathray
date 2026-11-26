@@ -6,6 +6,7 @@ import { AccountPage } from './features/account/AccountPage';
 import { SignInPage } from './features/account/SignInPage';
 import { HomePage } from './features/home/HomePage';
 import { AdminPage } from './features/admin/AdminPage';
+import { WhatsAppButton } from './features/support/WhatsAppButton';
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
         <Route path="/kit" element={<ComponentKitPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <WhatsAppButton />
     </BrowserRouter>
   );
 }
