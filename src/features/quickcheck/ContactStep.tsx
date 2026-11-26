@@ -8,7 +8,7 @@ export type Contact = {
   consent: boolean;
   marketing: boolean;
 };
-
+// eslint-disable-next-line react-refresh/only-export-components
 export const EMPTY_CONTACT: Contact = {
   name: '',
   email: '',
@@ -28,11 +28,19 @@ function validate(c: Contact): Errors {
     errors.email = 'Enter a valid email address, like name@example.com.';
   }
 
-  const digits = c.whatsapp.replace(/\D/g, '');
+  const whatsapp = c.whatsapp.trim();
+  const digits = whatsapp.replace(/\D/g, '');
 
-  if (c.whatsapp.trim() && (digits.length < 7 || digits.length > 15)) {
+  if (!whatsapp) {
+    errors.whatsapp = 'Enter your WhatsApp number with the country code, like +92 300 1234567.';
+  } else if (
+    whatsapp.length > 30 ||
+    !/^\+?[0-9 ()-]+$/.test(whatsapp) ||
+    digits.length < 7 ||
+    digits.length > 15
+  ) {
     errors.whatsapp =
-      'Enter your number with the country code, like +92 300 1234567, or leave it empty.';
+      'Enter a valid WhatsApp number with the country code, like +92 300 1234567.';
   }
 
   if (!c.consent) {
@@ -145,13 +153,14 @@ export function ContactStep({
 
       <div className="mt-5">
         <label htmlFor="contact-whatsapp" className="font-medium text-white">
-          WhatsApp number <span className="font-normal text-white/70">(optional)</span>
+          WhatsApp number
         </label>
         <input
           id="contact-whatsapp"
           type="tel"
           inputMode="tel"
           autoComplete="tel"
+          placeholder="+92 300 1234567"
           value={value.whatsapp}
           onChange={(e) => set('whatsapp', e.target.value)}
           aria-invalid={Boolean(errors.whatsapp)}
@@ -173,8 +182,9 @@ export function ContactStep({
             className="mt-1 size-5 shrink-0 accent-white"
           />
           <span className="text-white/80">
-            I agree that Pathray may save my answers and email me my Quick Check result. Only I
-            and my assigned expert see them. We never sell or share your data. Delete it any time.
+            I agree that Pathray may save my answers, email me my Quick Check result, and contact
+            me on WhatsApp about my result and any report I order. Only I and my assigned expert
+            see my answers. We never sell or share your data. Delete it any time.
           </span>
         </label>
         <FieldError id="contact-consent-error" message={errors.consent} />
