@@ -1,5 +1,5 @@
-
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export type Contact = {
   name: string;
@@ -8,6 +8,7 @@ export type Contact = {
   consent: boolean;
   marketing: boolean;
 };
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const EMPTY_CONTACT: Contact = {
   name: '',
@@ -184,7 +185,25 @@ export function ContactStep({
           <span className="text-white/80">
             I agree that Pathray may save my answers, email me my Quick Check result, and contact
             me on WhatsApp about my result and any report I order. Only I and my assigned expert
-            see my answers. We never sell or share your data. Delete it any time.
+            see my answers. We never sell or share your data. Delete it any time. I have read the{' '}
+            <Link
+              to="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white underline"
+            >
+              privacy policy
+            </Link>{' '}
+            and the{' '}
+            <Link
+              to="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white underline"
+            >
+              terms
+            </Link>
+            .
           </span>
         </label>
         <FieldError id="contact-consent-error" message={errors.consent} />
