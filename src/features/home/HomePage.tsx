@@ -45,10 +45,13 @@ function money(amount: number, currency: string) {
   return formatMoney(Number(amount), currency, LOCALES[currency] ?? 'en-US');
 }
 
-async function loadHome(): Promise<HomeData> {
+// CHANGE 1: takes the signed-in user's id and loads only that user's own journey.
+// Admins can read every journey, so without this filter an admin saw someone else's.
+async function loadHome(userId: string): Promise<HomeData> {
   const { data: journeys, error } = await supabase
     .from('journeys')
     .select('id,status,funding_tier,market_id')
+    .eq('student_id', userId)
     .order('created_at', { ascending: false })
     .limit(1);
   if (error) throw error;
@@ -227,7 +230,8 @@ export function HomePage() {
       const state = await getAccountState();
       setAccount(state);
       if (state.userId && !state.isAnonymous) {
-        setData(await loadHome());
+        // CHANGE 2: pass the user's id so only their own journey is loaded.
+        setData(await loadHome(state.userId));
       }
     } catch (e) {
       console.error('Could not load home:', e);
