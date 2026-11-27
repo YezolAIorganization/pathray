@@ -8,6 +8,7 @@ export type ReportSection = {
   funding_type: string;
   deadline: string;
   source_url: string;
+  checked_on: string;
   fact_verified: boolean;
   notes: string;
 };
@@ -16,6 +17,15 @@ type ReportBuilderProps = {
   journeyId: string;
   onPublished: () => Promise<void>;
 };
+
+// Today's date as YYYY-MM-DD in the admin's local time (used as the latest allowed check date).
+function todayIso() {
+  return new Date().toLocaleDateString('en-CA');
+}
+
+function isComplete(s: ReportSection) {
+  return s.fact_verified && s.source_url.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(s.checked_on);
+}
 
 export function ReportBuilder({ journeyId, onPublished }: ReportBuilderProps) {
   const [summary, setSummary] = useState('');
@@ -43,7 +53,9 @@ export function ReportBuilder({ journeyId, onPublished }: ReportBuilderProps) {
         console.error('Failed to load report:', error);
       } else if (data) {
         setSummary(data.summary ?? '');
-        setSections(Array.isArray(data.content) ? (data.content as ReportSection[]) : []);
+        const loaded = Array.isArray(data.content) ? (data.content as ReportSection[]) : [];
+        // Older drafts have no check date yet: show it empty so the admin must fill it in.
+        setSections(loaded.map((s) => ({ ...s, checked_on: s.checked_on ?? '' })));
         setIsPublished(Boolean(data.is_published));
       } else {
         setSummary('');
@@ -69,6 +81,7 @@ export function ReportBuilder({ journeyId, onPublished }: ReportBuilderProps) {
         funding_type: 'Full Funding / Scholarship',
         deadline: '',
         source_url: '',
+        checked_on: '',
         fact_verified: false,
         notes: '',
       },
@@ -109,14 +122,14 @@ export function ReportBuilder({ journeyId, onPublished }: ReportBuilderProps) {
 
   async function handlePublish() {
     if (saving) return;
-    const unverifiedCount = sections.filter((s) => !s.fact_verified || !s.source_url.trim()).length;
+    const incompleteCount = sections.filter((s) => !isComplete(s)).length;
     if (sections.length === 0) {
       alert('Add at least one verified funding pathway before publishing.');
       return;
     }
-    if (unverifiedCount > 0) {
+    if (incompleteCount > 0) {
       alert(
-        `All pathways must have a valid source URL and Fact Verified checked before publishing (${unverifiedCount} remaining).`,
+        `All pathways need a source URL, Fact Verified checked and a Checked on date before publishing (${incompleteCount} remaining).`,
       );
       return;
     }
@@ -160,8 +173,7 @@ export function ReportBuilder({ journeyId, onPublished }: ReportBuilderProps) {
     return <p className="mt-4 text-sm text-white/70">Loading report editor...</p>;
   }
 
-  const allVerified =
-    sections.length > 0 && sections.every((s) => s.fact_verified && s.source_url.trim().length > 0);
+  const allVerified = sections.length > 0 && sections.every(isComplete);
 
   return (
     <div className="mt-6 border-t border-white/12 pt-5">
@@ -261,7 +273,7 @@ export function ReportBuilder({ journeyId, onPublished }: ReportBuilderProps) {
               </label>
             </div>
 
-            <div className="mt-3">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="text-xs text-white/70">Official Source URL (Required for Verification)</span>
                 <input
@@ -269,6 +281,17 @@ export function ReportBuilder({ journeyId, onPublished }: ReportBuilderProps) {
                   value={section.source_url}
                   onChange={(e) => updateSection(section.id, { source_url: e.target.value })}
                   placeholder="https://..."
+                  className="mt-1 w-full rounded-control border border-white/15 bg-midnight px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs text-white/70">Checked on (date you checked the source)</span>
+                <input
+                  type="date"
+                  value={section.checked_on}
+                  max={todayIso()}
+                  onChange={(e) => updateSection(section.id, { checked_on: e.target.value })}
                   className="mt-1 w-full rounded-control border border-white/15 bg-midnight px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
                 />
               </label>

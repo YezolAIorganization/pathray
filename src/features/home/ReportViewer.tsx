@@ -8,6 +8,7 @@ type VerifiedPathway = {
   funding_type: string;
   deadline: string;
   source_url: string;
+  checked_on?: string;
   fact_verified: boolean;
   notes: string;
 };
@@ -30,6 +31,17 @@ function isSafeUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+// Shows a YYYY-MM-DD check date as a plain calendar date (no time zone shift).
+function formatCheckDate(value?: string): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 export function ReportViewer({ journeyId }: ReportViewerProps) {
@@ -109,55 +121,65 @@ export function ReportViewer({ journeyId }: ReportViewerProps) {
           Recommended funding pathways ({report.content.length})
         </h3>
 
-        {report.content.map((item, idx) => (
-          <article
-            key={item.id}
-            className="rounded-control border border-white/15 bg-white/5 p-5 transition-colors hover:border-white/30"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="text-xs font-medium text-white/70">Pathway #{idx + 1}</div>
-                <h4 className="mt-0.5 text-lg font-medium text-white">{item.title}</h4>
-                <p className="text-sm text-white/75">{item.university_or_program}</p>
+        {report.content.map((item, idx) => {
+          const checkedOn = formatCheckDate(item.checked_on);
+
+          return (
+            <article
+              key={item.id}
+              className="rounded-control border border-white/15 bg-white/5 p-5 transition-colors hover:border-white/30"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="text-xs font-medium text-white/70">Pathway #{idx + 1}</div>
+                  <h4 className="mt-0.5 text-lg font-medium text-white">{item.title}</h4>
+                  <p className="text-sm text-white/75">{item.university_or_program}</p>
+                </div>
+                {item.fact_verified && (
+                  <span className="rounded-full border border-green-500/30 bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-300">
+                    Fact verified
+                  </span>
+                )}
               </div>
-              {item.fact_verified && (
-                <span className="rounded-full border border-green-500/30 bg-green-500/15 px-2.5 py-0.5 text-xs font-medium text-green-300">
-                  Fact verified
-                </span>
+
+              <div className="mt-4 grid gap-2 border-y border-white/10 py-3 text-sm sm:grid-cols-2">
+                <div>
+                  <span className="text-white/60">Coverage: </span>
+                  <span className="font-medium text-white">{item.funding_type}</span>
+                </div>
+                <div>
+                  <span className="text-white/60">Deadline: </span>
+                  <span className="font-medium text-white">{item.deadline || 'Rolling / see link'}</span>
+                </div>
+                {checkedOn && (
+                  <div className="sm:col-span-2">
+                    <span className="text-white/60">Source checked on: </span>
+                    <span className="font-medium text-white">{checkedOn}</span>
+                  </div>
+                )}
+              </div>
+
+              {item.notes && (
+                <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-white/85">
+                  {item.notes}
+                </p>
               )}
-            </div>
 
-            <div className="mt-4 grid gap-2 border-y border-white/10 py-3 text-sm sm:grid-cols-2">
-              <div>
-                <span className="text-white/60">Coverage: </span>
-                <span className="font-medium text-white">{item.funding_type}</span>
-              </div>
-              <div>
-                <span className="text-white/60">Deadline: </span>
-                <span className="font-medium text-white">{item.deadline || 'Rolling / see link'}</span>
-              </div>
-            </div>
-
-            {item.notes && (
-              <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-white/85">
-                {item.notes}
-              </p>
-            )}
-
-            {item.source_url && isSafeUrl(item.source_url) && (
-              <div className="mt-4">
-                <a
-                  href={item.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-11 items-center rounded-control bg-white px-4 text-sm font-medium text-navy no-underline transition-colors hover:bg-white/90"
-                >
-                  Open official application source &rarr;
-                </a>
-              </div>
-            )}
-          </article>
-        ))}
+              {item.source_url && isSafeUrl(item.source_url) && (
+                <div className="mt-4">
+                  <a
+                    href={item.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center rounded-control bg-white px-4 text-sm font-medium text-navy no-underline transition-colors hover:bg-white/90"
+                  >
+                    Open official application source &rarr;
+                  </a>
+                </div>
+              )}
+            </article>
+          );
+        })}
       </div>
     </section>
   );
