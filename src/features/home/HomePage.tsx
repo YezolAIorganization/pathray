@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { formatMoney } from '../../lib/money';
 import { getAccountState, type AccountState } from '../account/account';
+import { DeleteMyData } from '../account/DeleteMyData'; // CHANGE 3a: import the delete card
 import { ProfileWizard } from '../profile/ProfileWizard';
 import { ReportViewer } from './ReportViewer';
 
@@ -432,6 +433,13 @@ export function HomePage() {
           <p role="alert" className="mt-4 text-sm font-medium text-white">
             {error}
           </p>
+        )}
+
+        {/* CHANGE 3b: delete my data, shown to every signed-in user */}
+        {!loading && signedIn && (
+          <div className="mt-4">
+            <DeleteMyData />
+          </div>
         )}
       </main>
     </div>
