@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CaptchaWidget } from './CaptchaWidget';
 
 export type Contact = {
   name: string;
@@ -77,6 +78,11 @@ type Props = {
   onSubmit: () => void;
   isSubmitting?: boolean;
   submitError?: string | null;
+  // Security check (Cloudflare Turnstile). All optional: without them no check is shown.
+  captchaRequired?: boolean;
+  captchaToken?: string | null;
+  onCaptchaToken?: (token: string | null) => void;
+  captchaResetKey?: number;
 };
 
 export function ContactStep({
@@ -86,8 +92,13 @@ export function ContactStep({
   onSubmit,
   isSubmitting = false,
   submitError = null,
+  captchaRequired = false,
+  captchaToken = null,
+  onCaptchaToken,
+  captchaResetKey = 0,
 }: Props) {
   const [errors, setErrors] = useState<Errors>({});
+  const [captchaMissing, setCaptchaMissing] = useState(false);
 
   function set<K extends keyof Contact>(key: K, next: Contact[K]) {
     onChange({ ...value, [key]: next });
@@ -101,7 +112,10 @@ export function ContactStep({
     const found = validate(value);
     setErrors(found);
 
-    if (Object.keys(found).length === 0) {
+    const missingCaptcha = captchaRequired && !captchaToken;
+    setCaptchaMissing(missingCaptcha);
+
+    if (Object.keys(found).length === 0 && !missingCaptcha) {
       onSubmit();
       return;
     }
@@ -223,6 +237,18 @@ export function ContactStep({
           </span>
         </label>
       </div>
+
+      {captchaRequired && (
+        <div>
+          <CaptchaWidget key={captchaResetKey} onToken={(token) => onCaptchaToken?.(token)} />
+          {captchaMissing && !captchaToken && (
+            <FieldError
+              id="contact-captcha-error"
+              message="Complete the security check above, then try again."
+            />
+          )}
+        </div>
+      )}
 
       {submitError && (
         <p role="alert" className="mt-5 rounded-control border border-red-300/30 bg-red-400/10 p-3 text-sm text-white">

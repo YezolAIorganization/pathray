@@ -12,6 +12,9 @@ type Draft = { answers: Answers; index: number; contact: Contact };
 
 const DRAFT_KEY = 'pathray:quickcheck-draft';
 
+// CHANGE 1: the security check is shown only when the Turnstile site key exists.
+const CAPTCHA_ENABLED = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY);
+
 function loadDraft(): Draft {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
@@ -84,6 +87,9 @@ export function QuickCheckPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [serverTier, setServerTier] = useState<Tier | null>(null);
+  // CHANGE 2: the security check token (single use) and a key to reset the widget.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -153,6 +159,8 @@ export function QuickCheckPage() {
     setSubmitError(null);
     setIsSubmitting(false);
     setServerTier(null);
+    setCaptchaToken(null);
+    setCaptchaResetKey((key) => key + 1);
     setIndex(0);
   }
 
@@ -163,7 +171,13 @@ export function QuickCheckPage() {
     setSubmitError(null);
 
     try {
-      const result = await submitQuickCheck(answers, localTier, contact);
+      // CHANGE 3: send the security check token with the submission.
+      const result = await submitQuickCheck(
+        answers,
+        localTier,
+        contact,
+        captchaToken ?? undefined,
+      );
       setServerTier(result.tier);
       setIndex(resultIndex);
     } catch (error) {
@@ -172,6 +186,9 @@ export function QuickCheckPage() {
         'We could not save your answers. Please check your connection and try again.',
       );
     } finally {
+      // A token works only once, so always ask for a fresh one.
+      setCaptchaToken(null);
+      setCaptchaResetKey((key) => key + 1);
       setIsSubmitting(false);
     }
   }
@@ -202,7 +219,7 @@ export function QuickCheckPage() {
       }}
     >
       <header className="border-b border-white/10">
-        <div className="mx-auto flex h-[84px] w-full max-w-[1200px] items-center px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-21 w-full max-w-300 items-center px-4 sm:px-6 lg:px-8">
           <Link to="/" aria-label="Pathray home" className="inline-flex">
             <img
               src="/brand/pathray-logo-dark.svg"
@@ -214,7 +231,7 @@ export function QuickCheckPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[640px] px-4 py-10 sm:py-16">
+      <main className="mx-auto w-full max-w-160 px-4 py-10 sm:py-16">
         <div className="rounded-card border border-white/12 bg-white/6 p-5 shadow-[0_10px_40px_rgb(0_0_0/0.35),inset_0_1px_0_rgb(255_255_255/0.18)] backdrop-blur-[18px] backdrop-saturate-[1.4] motion-reduce:bg-[rgb(19_31_63/0.92)] motion-reduce:backdrop-blur-none sm:p-8">
           {!showResult && (
             <>
@@ -339,6 +356,10 @@ export function QuickCheckPage() {
                 onSubmit={handleContactSubmit}
                 isSubmitting={isSubmitting}
                 submitError={submitError}
+                captchaRequired={CAPTCHA_ENABLED}
+                captchaToken={captchaToken}
+                onCaptchaToken={setCaptchaToken}
+                captchaResetKey={captchaResetKey}
               />
             </>
           )}

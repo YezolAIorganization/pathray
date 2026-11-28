@@ -11,8 +11,9 @@ export async function submitQuickCheck(
   answers: Answers,
   _tier: string | null,
   contact: Contact,
+  captchaToken?: string,
 ): Promise<QuickCheckResult> {
-  await ensureAnonymousSession();
+  await ensureAnonymousSession(captchaToken);
 
   const { data, error } = await supabase.rpc('submit_quick_check', {
     p_market: typeof answers.market === 'string' ? answers.market : '',

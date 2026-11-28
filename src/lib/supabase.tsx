@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -10,7 +9,9 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-export async function ensureAnonymousSession() {
+// captchaToken is only needed when a new anonymous session is created
+// (and only once captcha protection is switched on in Supabase).
+export async function ensureAnonymousSession(captchaToken?: string) {
   const { data: sessionData, error: sessionError } =
     await supabase.auth.getSession();
 
@@ -20,7 +21,9 @@ export async function ensureAnonymousSession() {
     return sessionData.session.user;
   }
 
-  const { data, error } = await supabase.auth.signInAnonymously();
+  const { data, error } = await supabase.auth.signInAnonymously(
+    captchaToken ? { options: { captchaToken } } : undefined,
+  );
 
   if (error) throw error;
   if (!data.user) throw new Error('Could not create student session.');
